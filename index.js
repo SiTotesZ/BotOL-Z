@@ -1,7 +1,8 @@
 const { Boom } = require('@hapi/boom')
 const NodeCache = require('node-cache')
 const readline = require('readline')
-const makeWaSocket {
+const {
+    default: makeWASocket,
     AnyMessageContent,
     BinaryInfo,
     DisconectReason,
@@ -9,18 +10,18 @@ const makeWaSocket {
     delays,
     fetchLatestBaileysVersion,
     getAnggreVotesInPollMessage,
-    makwCacheableSIgnalKeyStore,
+    makeCacheableSignalKeyStore,
     makeInMemoryStore,
     PHONENUMBER_MCC,
     proto,
     useMultiFileAuthState,
     WAMessageKey
-} = readline('@WhiskeySockets/Baileys')
+} = require('@whiskeysockets/baileys')
 
-// const MAIN_LOGGER = readline('')
+// const MAIN_LOGGER = require('')
 const pino = require('pino')
 
-const open = require('open')
+// const open = require('open')
 const fs  = require('fs')
 
 
@@ -35,7 +36,7 @@ const logger = pino().child({
 
 
 const useStore = true
-const doReplies = !process.argv.includes('--no-reply')
+const doReplies = !false
 const usePairingCode = true
 const useMobile = false
 
@@ -55,22 +56,22 @@ setInterval(() => {
 
 
 
+console.log('SiTotes conecting')
 
-
-async function startSock (){
+async function sitotesBoot (){
 
     const { state, saveCreds } = await useMultiFileAuthState('baileys_auth_info')
 
     const { version, isLatest } = await fetchLatestBaileysVersion()
     console.log(`using WA v${version.join('.')}, isLatest: ${isLatest}`)
 
-    const sock = makeWASocket({
+    const onic = makeWASocket({
         version,
         logger: pino({
             level: 'fatal'
         }).child({
             level: 'fatal'
-        })
+        }),
         printQRInTerminal: !usePairingCode,
         mobile: useMobile,
         auth: {
@@ -86,7 +87,7 @@ async function startSock (){
         getMessage,
     })
 
-    store?.bind(sock.ev)
+    store?.bind(onic.ev)
 
 
 
@@ -100,27 +101,27 @@ async function startSock (){
 
 
 
-    if(usePairingCode && !sock.authState.creds.registered) {
+    if(usePairingCode && !onic.authState.creds.registered) {
         if(useMobile) {
             throw new Error('Cannot use pairing code with mobile api')
         }
 
         const phoneNumber = await question('Please enter your mobile phone number:\n')
-        const code = await sock.requestPairingCode(phoneNumber)
+        const code = await onic.requestPairingCode(phoneNumber)
         console.log(`Pairing code: ${code}`)
     }
 
-    if(useMobile && !sock.authState.creds.registered) {
-        const { registration } = sock.authState.creds || { registration: {} }
+    if(useMobile && !onic.authState.creds.registered) {
+        const { registration } = onic.authState.creds || { registration: {} }
 
         if(!registration.phoneNumber) {
             registration.phoneNumber = await question('Please enter your mobile phone number:\n')
         }
 
         const libPhonenumber = await require("libphonenumber-js")
-        const phoneNumber = libPhonenumber.parsePhoneNumber(registration!.phoneNumber)
+        const phoneNumber = libPhonenumber.parsePhoneNumber(registration?.phoneNumber)
         if(!phoneNumber?.isValid()) {
-            throw new Error('Invalid phone number: ' + registration!.phoneNumber)
+            throw new Error('Invalid phone number: ' + registration?.phoneNumber)
         }
 
         registration.phoneNumber = phoneNumber.format('E.164')
@@ -128,7 +129,7 @@ async function startSock (){
         registration.phoneNumberNationalNumber = phoneNumber.nationalNumber
         const mcc = PHONENUMBER_MCC[phoneNumber.countryCallingCode]
         if(!mcc) {
-            throw new Error('Could not find MCC for phone number: ' + registration!.phoneNumber + '\nPlease specify the MCC manually.')
+            throw new Error('Could not find MCC for phone number: ' + registration?.phoneNumber + '\nPlease specify the MCC manually.')
         }
 
         registration.phoneNumberMobileCountryCode = mcc
@@ -136,7 +137,7 @@ async function startSock (){
         async function enterCode() {
             try {
                 const code = await question('Please enter the one time code:\n')
-                const response = await sock.register(code.replace(/["']/g, '').trim().toLowerCase())
+                const response = await onic.register(code.replace(/["']/g, '').trim().toLowerCase())
                 console.log('Successfully registered your phone number.')
                 console.log(response)
                 rl.close()
@@ -147,11 +148,11 @@ async function startSock (){
         }
 
         async function enterCaptcha() {
-            const response = await sock.requestRegistrationCode({ ...registration, method: 'captcha' })
+            const response = await onic.requestRegistrationCode({ ...registration, method: 'captcha' })
             const path = __dirname + '/captcha.png'
-            fs.writeFileSync(path, Buffer.from(response.image_blob!, 'base64'))
+            fs.writeFileSync(path, Buffer.from(response.image_blob, 'base64'))
 
-            open(path)
+            // open(path)
             const code = await question('Please enter the captcha code:\n')
             fs.unlinkSync(path)
             registration.captcha = code.replace(/["']/g, '').trim().toLowerCase()
@@ -170,7 +171,7 @@ async function startSock (){
             }
 
             try {
-                await sock.requestRegistrationCode(registration)
+                await onic.requestRegistrationCode(registration)
                 await enterCode()
             } catch(error) {
                 console.error('Failed to request registration code. Please try again.\n', error)
@@ -188,16 +189,16 @@ async function startSock (){
 
 
 
-    const sendMessageWTyping = async(msg: AnyMessageContent, jid: string) => {
-        await sock.presenceSubscribe(jid)
+    const sendMessageWTyping = async(msg, jid) => {
+        await onic.presenceSubscribe(jid)
         await delay(500)
 
-        await sock.sendPresenceUpdate('composing', jid)
+        await onic.sendPresenceUpdate('composing', jid)
         await delay(2000)
 
-        await sock.sendPresenceUpdate('paused', jid)
+        await onic.sendPresenceUpdate('paused', jid)
 
-        await sock.sendMessage(jid, msg)
+        await onic.sendMessage(jid, msg)
     }
 
 
@@ -207,14 +208,14 @@ async function startSock (){
 
 
 
-    sock.ev.process(
+    onic.ev.process(
         async(events) => {
             if(events['connection.update']) {
                 const update = events['connection.update']
                 const { connection, lastDisconnect } = update
                 if(connection === 'close') {
-                    if((lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut) {
-                        startSock()
+                    if(new Boom(lastDisconnect?.error)?.output?.statusCode || DisconnectReason.loggedOut) {
+                        sitotesBoot()
                     } else {
                         console.log('Connection closed. You are logged out.')
                     }
@@ -238,7 +239,7 @@ async function startSock (){
 
                     const buffer = encodeWAM(binaryInfo);
                     
-                    const result = await sock.sendWAMBuffer(buffer)
+                    const result = await onic.sendWAMBuffer(buffer)
                     console.log(result)
                 }
 
@@ -275,8 +276,8 @@ async function startSock (){
                     for(const msg of upsert.messages) {
                         if(!msg.key.fromMe && doReplies) {
                             console.log('replying to', msg.key.remoteJid)
-                            await sock!.readMessages([msg.key])
-                            await sendMessageWTyping({ text: 'Hello there!' }, msg.key.remoteJid!)
+                            await onic?.readMessages([msg.key])
+                            // await sendMessageWTyping({ text: 'Hello there!' }, msg.key.remoteJid)
                         }
                     }
                 }
@@ -324,7 +325,7 @@ async function startSock (){
                     if(typeof contact.imgUrl !== 'undefined') {
                         const newUrl = contact.imgUrl === null
                             ? null
-                            : await sock!.profilePictureUrl(contact.id!).catch(() => null)
+                            : await onic?.profilePictureUrl(contact.id).catch(() => null)
                         console.log(
                             `contact ${contact.id} has a new profile pic: ${newUrl}`,
                         )
@@ -338,14 +339,16 @@ async function startSock (){
         }
     )
 
-    return sock
+    return onic
 
-    async function getMessage(key: WAMessageKey): Promise<WAMessageContent | undefined> {
+    async function getMessage(key) {
         if(store) {
-            const msg = await store.loadMessage(key.remoteJid!, key.id!)
+            const msg = await store.loadMessage(key.remoteJid, key.id)
             return msg?.message || undefined
         }
 
         return proto.Message.fromObject({})
     }
 }
+
+sitotesBoot()

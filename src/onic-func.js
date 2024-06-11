@@ -34,7 +34,7 @@ const {
     msToDate,
     isUrl,
     tanggal,
-    delays,
+    turudek,
 
     TelegraPh
 } = require(home('./lib/sitotesFunc'))
@@ -686,7 +686,7 @@ END:VCARD`
                 text: text,
                 contextInfo: {
                     "externalAdReply": {
-                        "title": `Selamat ${salam} ${pushname}`,
+                        "title": `${salam} ${pushname}`,
                         "body": footer_text,
                         "previewType": "PHOTO",
                         "thumbnailUrl": ``,

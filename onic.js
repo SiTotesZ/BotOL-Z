@@ -164,15 +164,15 @@ async function sitotesBoot (){
         console.log(` "${module}" Telah diupdate!`)
     })
     
-    // require('./src/onic-notif')(onic, store, state, saveCreds, version, isLatest)
-    // nocache('./src/onic-notif', async module => {
-    //     onic.ev.removeAllListeners('messages.upsert');
-    //     onic.ev.removeAllListeners('messages.update');
-    //     onic.ev.removeAllListeners('poll-recipient');
-    //     onic.ev.removeAllListeners('schedule-trigger');
-    //     require(module)(onic, store, state, saveCreds, version, isLatest)
-    //     console.log(` "${module}" Telah diupdate!`)
-    // })
+    require('./src/onic-notif')(onic, store, state, saveCreds, version, isLatest)
+    nocache('./src/onic-notif', async module => {
+        onic.ev.removeAllListeners('messages.upsert');
+        onic.ev.removeAllListeners('messages.update');
+        onic.ev.removeAllListeners('poll-recipient');
+        onic.ev.removeAllListeners('schedule-trigger');
+        require(module)(onic, store, state, saveCreds, version, isLatest)
+        console.log(` "${module}" Telah diupdate!`)
+    })
 
 
     if(usePairingCode && !onic.authState.creds.registered) {
@@ -238,100 +238,7 @@ async function sitotesBoot (){
         }
     })
 
-    onic.ev.process(
-        async(events) => {
-            if(events['creds.update']) {
-                await saveCreds()
-            }
-
-            if(events['labels.association']) {
-                console.log(events['labels.association'])
-            }
-
-
-            if(events['labels.edit']) {
-                console.log(events['labels.edit'])
-            }
-
-            if(events.call) {
-                console.log('recv call event', events.call)
-            }
-
-            if(events['messaging-history.set']) {
-                const { chats, contacts, messages, isLatest } = events['messaging-history.set']
-                console.log(`recv ${chats.length} chats, ${contacts.length} contacts, ${messages.length} msgs (is latest: ${isLatest})`)
-            }
-
-            if(events['messages.upsert']) {
-                const upsert = events['messages.upsert']
-                console.log('recv messages ', JSON.stringify(upsert, undefined, 2))
-
-                if(upsert.type === 'notify') {
-                    for(const msg of upsert.messages) {
-                        if(!msg.key.fromMe && doReplies) {
-                            console.log('replying to', msg.key.remoteJid)
-                            await onic?.readMessages([msg.key])
-                        }
-                    }
-                }
-            }
-
-            if(events['messages.update']) {
-                console.log(
-                    JSON.stringify(events['messages.update'])
-                )
-
-                for(const { key, update } of events['messages.update']) {
-                    if(update.pollUpdates) {
-                        const pollCreation = await getMessage(key)
-                        if(pollCreation) {
-                            console.log(
-                                'got poll update, aggregation: ',
-                                getAggregateVotesInPollMessage({
-                                    message: pollCreation,
-                                    pollUpdates: update.pollUpdates,
-                                })
-                            )
-                        }
-                    }
-                }
-            }
-
-            if(events['message-receipt.update']) {
-                console.log(events['message-receipt.update'])
-            }
-
-            if(events['messages.reaction']) {
-                console.log(events['messages.reaction'])
-            }
-
-            if(events['presence.update']) {
-                console.log(events['presence.update'])
-            }
-
-            if(events['chats.update']) {
-                console.log(events['chats.update'])
-            }
-
-            if(events['contacts.update']) {
-                for(const contact of events['contacts.update']) {
-                    if(typeof contact.imgUrl !== 'undefined') {
-                        const newUrl = contact.imgUrl === null
-                            ? null
-                            : await onic?.profilePictureUrl(contact.id).catch(() => null)
-                        console.log(
-                            `contact ${contact.id} has a new profile pic: ${newUrl}`,
-                        )
-                    }
-                }
-            }
-
-            if(events['chats.delete']) {
-                console.log('chats deleted ', events['chats.delete'])
-            }
-        }
-    )
-
+    
     return onic
 
     async function getMessage(key) {
